@@ -356,6 +356,23 @@
     return ret;
 }
 
+- (void)bindString:(NSString *)string toColumn:(int)idx inStatement:(sqlite3_stmt*)pStmt {
+    NSUInteger maxLength = [string maximumLengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+    NSUInteger usedLength = 0;
+    NSMutableData *data = [NSMutableData dataWithLength:maxLength + 1];
+    BOOL converted = [string getBytes:[data mutableBytes]
+                            maxLength:maxLength
+                           usedLength:&usedLength
+                             encoding:NSUTF8StringEncoding
+                              options:0
+                                range:NSMakeRange(0, [string length])
+                       remainingRange:NULL];
+    if (!converted) {
+        NSLog(@"Could not get UTF8 representation of a string");
+    }
+    sqlite3_bind_text(pStmt, idx, [data bytes], -1, SQLITE_TRANSIENT);
+}
+
 - (void)bindObject:(id)obj toColumn:(int)idx inStatement:(sqlite3_stmt*)pStmt {
     
     if ((!obj) || ((NSNull *)obj == [NSNull null])) {
@@ -399,11 +416,11 @@
             sqlite3_bind_double(pStmt, idx, [obj doubleValue]);
         }
         else {
-            sqlite3_bind_text(pStmt, idx, [[obj description] UTF8String], -1, SQLITE_STATIC);
+            [self bindString:[obj description] toColumn:idx inStatement:pStmt];
         }
     }
     else {
-        sqlite3_bind_text(pStmt, idx, [[obj description] UTF8String], -1, SQLITE_STATIC);
+        [self bindString:[obj description] toColumn:idx inStatement:pStmt];
     }
 }
 
